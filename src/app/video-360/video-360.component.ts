@@ -54,7 +54,7 @@ export class Video360Component implements OnInit, OnDestroy {
     this.video.playsInline = true;
     this.video.autoplay = true;
 
-    const src = 'assets/video360.m3u8';
+    const src = 'assets/4k_splited_video/video360.m3u8';
 
     if (Hls.isSupported()) {
       this.hls = new Hls({
