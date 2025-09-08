@@ -9,6 +9,7 @@ import {
 import Hls from 'hls.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { VIDEO_CONSTS } from './consts/consts';
 
 interface Marker {
   id: string;
@@ -47,12 +48,12 @@ export class Video360Component implements OnInit, OnDestroy {
   src_google_drive =
     'https://drive.google.com/file/d/1fYjh0mLqUMAicwOI2n_IyiPVteJVc64C/view?usp=sharing';
 
-  src5 = 'https://bnc5m8rz-3000.euw.devtunnels.ms/uploads/output/wind_HEVC.mp4';
-  // https://drive.google.com/file/d/1OhCsGiM9bFSzj8q1cKmanHdE7xOLD2gW/view?usp=drive_link
-  // https://drive.google.com/file/d/FILE_ID/view?usp=sharing.
-  // https://drive.google.com/file/d/1fYjh0mLqUMAicwOI2n_IyiPVteJVc64C/view?usp=sharing
+  // src5 = 'https://bnc5m8rz-3000.euw.devtunnels.ms/uploads/output/wind_HEVC.mp4';
+  src5 = 'https://storage.googleapis.com/test-360-234564646/wind_HEVC.mp4';
+
   markMode = false;
   progress = 0;
+  bufferedProgress = 0;
   markers: Marker[] = [];
   private highlightedMarkerId: string | null = null; // Track the currently highlighted marker
   private markerHighlightTimeout: any; // For clearing timeout
@@ -75,7 +76,7 @@ export class Video360Component implements OnInit, OnDestroy {
     this.video.muted = true;
     this.video.playsInline = true;
     this.video.autoplay = true;
-    this.video.src = this.src3;
+    this.video.src = this.src5;
     this.video.play();
     // if (Hls.isSupported()) {
     //   this.hls = new Hls({
@@ -128,10 +129,10 @@ export class Video360Component implements OnInit, OnDestroy {
   private initScene() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
-      75,
+      VIDEO_CONSTS.DEFAULT_CAMERA_FOW,
       window.innerWidth / window.innerHeight,
-      0.1,
-      1000
+      VIDEO_CONSTS.DEFAULT_CAMERA_NEAR,
+      VIDEO_CONSTS.DEFAULT_CAMERA_FAR
     );
     this.camera.position.set(0, 0, 0.1);
 
@@ -222,6 +223,11 @@ export class Video360Component implements OnInit, OnDestroy {
     // this.markerHighlightTimeout = setTimeout(() => {
     //   this.highlightedMarkerId = null;
     // }, this.markerDisplayDuration * 1000); // Convert seconds to milliseconds
+
+    this.controls.target.copy(marker.position);
+    this.controls.update();
+    this.camera.fov = VIDEO_CONSTS.DEFAULT_CAMERA_FOW;
+    this.camera.updateProjectionMatrix();
   }
 
   private animate = () => {
@@ -245,10 +251,50 @@ export class Video360Component implements OnInit, OnDestroy {
     });
   }
 
+  // private updateProgress() {
+  //   requestAnimationFrame(() => this.updateProgress());
+  //   if (!this.video.duration) return;
+  //   this.progress = (this.video.currentTime / this.video.duration) * 100;
+  // }
+
   private updateProgress() {
     requestAnimationFrame(() => this.updateProgress());
-    if (!this.video.duration) return;
+    if (!this.video.duration) {
+      this.progress = 0;
+      this.bufferedProgress = 0;
+      return;
+    }
     this.progress = (this.video.currentTime / this.video.duration) * 100;
+    let maxRelevantBufferedEnd = 0;
+    // Calculate buffered progress
+    for (let i = 0; i < this.video.buffered.length; i++) {
+      const start = this.video.buffered.start(i);
+      const end = this.video.buffered.end(i);
+
+      // Case 1: The current time falls within this buffered range.
+      // The buffered bar should extend to the end of this range.
+      if (start <= this.video.currentTime && end >= this.video.currentTime) {
+        maxRelevantBufferedEnd = end;
+        break; // Found the most relevant buffer segment for current time, stop searching.
+      }
+      // Case 2: This buffered range ends completely *before* the current time.
+      // We consider this range's end as a potential highest point *before* any gap,
+      // but we continue searching in case a later range contains currentTime.
+      else if (end < this.video.currentTime) {
+        maxRelevantBufferedEnd = Math.max(maxRelevantBufferedEnd, end);
+      }
+      // Case 3: This buffered range starts *after* the current time.
+      // This implies `currentTime` is in an unbuffered gap, or before any buffer.
+      // In this case, the `maxRelevantBufferedEnd` should reflect only what was buffered
+      // *before* this gap (or 0 if no buffer before).
+      else if (start > this.video.currentTime) {
+        // We've found a gap or only future buffered segments.
+        // The visible buffered progress should stop at `maxRelevantBufferedEnd` found so far.
+        break; // Stop iterating.
+      }
+    }
+    this.bufferedProgress =
+      (maxRelevantBufferedEnd / this.video.duration) * 100;
   }
 
   seekVideo(event: MouseEvent) {
@@ -260,11 +306,13 @@ export class Video360Component implements OnInit, OnDestroy {
 
     this.video.currentTime = newTime;
     this.progress = percent * 100;
+    this.bufferedProgress = 0;
 
     // if (this.markerHighlightTimeout) {
     //   clearTimeout(this.markerHighlightTimeout);
     // }
     this.highlightedMarkerId = null;
+    this.updateProgress();
   }
 
   playVideo() {

@@ -12,6 +12,7 @@
 
   <div class="timeline" #timeline (click)="seekVideo($event)">
     <div class="progress" [style.width.%]="progress"></div>
+    <div class="buffered" [style.width.%]="bufferedProgress"></div>
   </div>
 </div>
 

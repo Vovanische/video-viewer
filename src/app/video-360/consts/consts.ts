@@ -1,0 +1,5 @@
+export const VIDEO_CONSTS = {
+  DEFAULT_CAMERA_FOW: 75,
+  DEFAULT_CAMERA_NEAR: 0.1,
+  DEFAULT_CAMERA_FAR: 1000,
+} as const;
