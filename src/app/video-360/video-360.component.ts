@@ -51,6 +51,14 @@ export class Video360Component implements OnInit, OnDestroy {
   // src5 = 'https://bnc5m8rz-3000.euw.devtunnels.ms/uploads/output/wind_HEVC.mp4';
   src5 = 'https://storage.googleapis.com/test-360-234564646/wind_HEVC.mp4';
 
+  src_max_hls_1 =
+    'https://customer-uoahtvo01gx6knj8.cloudflarestream.com/8cdb0da222dd46dca78400a13ccdf18e/manifest/video.m3u8';
+  src_max_dash_1 =
+    'https://customer-uoahtvo01gx6knj8.cloudflarestream.com/8cdb0da222dd46dca78400a13ccdf18e/manifest/video.mpd';
+
+  src_max_hls_2 =
+    'https://customer-uoahtvo01gx6knj8.cloudflarestream.com/60e748c4eacf31259be1966ad77c1f8e/manifest/video.m3u8';
+
   markMode = false;
   progress = 0;
   bufferedProgress = 0;
@@ -76,37 +84,35 @@ export class Video360Component implements OnInit, OnDestroy {
     this.video.muted = true;
     this.video.playsInline = true;
     this.video.autoplay = true;
-    this.video.src = this.src5;
-    this.video.play();
-    // if (Hls.isSupported()) {
-    //   this.hls = new Hls({
-    //     startFragPrefetch: true,
-    //     maxBufferLength: 600,
-    //     maxMaxBufferLength: 600,
-    //     maxBufferSize: 4 * 1024 ** 3,
-    //     maxBufferHole: 0.5,
-    //     progressive: true,
-    //     fragLoadingTimeOut: 10000,
-    //     fragLoadingMaxRetry: 5,
-    //   });
+    // this.video.src = this.src5;
+    // this.video.play();
+    if (Hls.isSupported()) {
+      this.hls = new Hls({
+        startFragPrefetch: true,
+        maxBufferLength: 600,
+        maxMaxBufferLength: 600,
+        maxBufferSize: 4 * 1024 ** 3,
+        maxBufferHole: 0.5,
+        progressive: true,
+        fragLoadingTimeOut: 10000,
+        fragLoadingMaxRetry: 5,
+      });
 
-    //   this.hls.loadSource(this.src);
-    //   this.hls.attachMedia(this.video);
-    //   this.hls.on(Hls.Events.MANIFEST_PARSED, () =>
-    //     this.video.play().catch(() => {})
-    //   );
+      this.hls.loadSource(this.src_max_hls_1);
+      this.hls.attachMedia(this.video);
+      this.hls.on(Hls.Events.MANIFEST_PARSED, () =>
+        this.video.play().catch(() => {})
+      );
 
-    //   this.hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
-    //     console.log('Сегмент загружен:', data.frag.sn); // порядковый номер сегмента
-
-    //     // при желании можно отслеживать, какие сегменты уже загружены
-    //   });
-    // } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
-    //   this.video.src = this.src;
-    //   this.video.addEventListener('loadedmetadata', () =>
-    //     this.video.play().catch(() => {})
-    //   );
-    // }
+      this.hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+        console.log('Сегмент загружен:', data.frag.sn); // порядковый номер сегмента
+      });
+    } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
+      this.video.src = this.src;
+      this.video.addEventListener('loadedmetadata', () =>
+        this.video.play().catch(() => {})
+      );
+    }
 
     this.texture = new THREE.VideoTexture(this.video);
     this.texture.minFilter = THREE.LinearFilter;
