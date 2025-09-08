@@ -1,15 +1,27 @@
 <div #rendererContainer class="viewer"></div>
+<!-- <video [src]="src2"></video> -->
 
 <div class="controls">
   <div class="buttons">
-    <button (click)="toggleMarking()">
-      {{ markMode ? 'Exit Mark Mode' : 'Mark Mode' }}
+    <button class="action-button" (click)="toggleMarking()">
+      {{ markMode ? "Exit Mark Mode" : "Mark Mode" }}
     </button>
-    <button (click)="playVideo()">Play</button>
-    <button (click)="pauseVideo()">Pause</button>
+    <button class="action-button" (click)="playVideo()">Play</button>
+    <button class="action-button" (click)="pauseVideo()">Pause</button>
   </div>
 
   <div class="timeline" #timeline (click)="seekVideo($event)">
     <div class="progress" [style.width.%]="progress"></div>
   </div>
+</div>
+
+<div class="marker-list">
+  <h3>Markers</h3>
+  <ul>
+    @for (marker of markers; track marker.id; let i=$index){
+    <li (click)="goToMarker(marker)">
+      Point {{ i + 1 }} ({{ marker.time | number : "1.1-1" }}s)
+    </li>
+    }
+  </ul>
 </div>
