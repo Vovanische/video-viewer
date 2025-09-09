@@ -59,6 +59,9 @@ export class Video360Component implements OnInit, OnDestroy {
   src_max_hls_2 =
     'https://customer-uoahtvo01gx6knj8.cloudflarestream.com/60e748c4eacf31259be1966ad77c1f8e/manifest/video.m3u8';
 
+  src_max_unknown =
+    'https://stream.mux.com/XyWaIoimgC9sRnAmhr5BZ500dnJnnsXNTt4UFONEq8F4.m3u8';
+
   markMode = false;
   progress = 0;
   bufferedProgress = 0;
@@ -98,7 +101,7 @@ export class Video360Component implements OnInit, OnDestroy {
         fragLoadingMaxRetry: 5,
       });
 
-      this.hls.loadSource(this.src_max_hls_1);
+      this.hls.loadSource(this.src_max_unknown);
       this.hls.attachMedia(this.video);
       this.hls.on(Hls.Events.MANIFEST_PARSED, () =>
         this.video.play().catch(() => {})
@@ -230,8 +233,25 @@ export class Video360Component implements OnInit, OnDestroy {
     //   this.highlightedMarkerId = null;
     // }, this.markerDisplayDuration * 1000); // Convert seconds to milliseconds
 
-    this.controls.target.copy(marker.position);
+    // this.controls.target.copy(marker.position);
+    // this.controls.update();
+
+    // this.camera.fov = VIDEO_CONSTS.DEFAULT_CAMERA_FOW;
+    // this.camera.updateProjectionMatrix();
+
+    const controlsEnabledState = this.controls.enabled;
+    // Временно отключаем OrbitControls
+    // this.controls.enabled = false;
+
+    // Направляем камеру прямо на маркер, не меняя ее положения
+    this.camera.lookAt(marker.position);
+
+    // Восстанавливаем исходное состояние controls.enabled
+    // this.controls.enabled = true;
+    // Обновляем OrbitControls, чтобы синхронизировать его с новой ориентацией камеры
+    // (target остается прежним, поэтому центр вращения не меняется)
     this.controls.update();
+
     this.camera.fov = VIDEO_CONSTS.DEFAULT_CAMERA_FOW;
     this.camera.updateProjectionMatrix();
   }
