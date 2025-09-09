@@ -39,7 +39,11 @@ export class Video360Component implements OnInit, OnDestroy {
   private hls?: Hls;
   private sphere!: THREE.Mesh;
 
+  src360 = 'assets/GS010002.360';
+
   src = 'assets/4k_splited_video/video360.m3u8';
+  src56k = 'assets/5.6k_splited_video/playlist.m3u8';
+
   src2 = 'assets/video360Source.mp4';
   src3 = 'assets/wind_HEVC.mp4';
   src4 =
@@ -90,25 +94,40 @@ export class Video360Component implements OnInit, OnDestroy {
     // this.video.src = this.src5;
     // this.video.play();
     if (Hls.isSupported()) {
+      // this.hls = new Hls({
+      //   startFragPrefetch: true,
+      //   maxBufferLength: 600,
+      //   maxMaxBufferLength: 600,
+      //   maxBufferSize: 4 * 1024 ** 3,
+      //   maxBufferHole: 0.5,
+      //   progressive: true,
+      //   fragLoadingTimeOut: 10000,
+      //   fragLoadingMaxRetry: 5,
+      // });
+
       this.hls = new Hls({
         startFragPrefetch: true,
-        maxBufferLength: 600,
-        maxMaxBufferLength: 600,
+        maxBufferLength: 60,
+        maxMaxBufferLength: 90,
         maxBufferSize: 4 * 1024 ** 3,
         maxBufferHole: 0.5,
         progressive: true,
         fragLoadingTimeOut: 10000,
         fragLoadingMaxRetry: 5,
+        enableWorker: true, // <--- Добавляем для улучшения производительности
       });
 
       this.hls.loadSource(this.src_max_unknown);
       this.hls.attachMedia(this.video);
-      this.hls.on(Hls.Events.MANIFEST_PARSED, () =>
-        this.video.play().catch(() => {})
-      );
+      this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (this.hls) {
+          this.hls.currentLevel = this.hls.levels.length - 1;
+        }
+        this.video.play().catch(() => {});
+      });
 
       this.hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
-        console.log('Сегмент загружен:', data.frag.sn); // порядковый номер сегмента
+        console.log('Segment loaded:', data.frag.sn); // порядковый номер сегмента
       });
     } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
       this.video.src = this.src;
