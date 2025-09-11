@@ -8,6 +8,8 @@
     </button>
     <button class="action-button" (click)="playVideo()">Play</button>
     <button class="action-button" (click)="pauseVideo()">Pause</button>
+    <button class="action-button" (click)="loadLocalVideo()">Load Local Video</button>
+    <input type="file" #fileInput style="display: none" (change)="handleFileUpload($event)" accept="video/*" />
   </div>
 
   <div class="timeline" #timeline (click)="seekVideo($event)">

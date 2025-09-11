@@ -7,15 +7,34 @@ import {
   ViewChild,
 } from '@angular/core';
 import Hls from 'hls.js';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import {
+  Scene,
+  PerspectiveCamera,
+  WebGLRenderer,
+  Mesh,
+  SphereGeometry,
+  MeshBasicMaterial,
+  VideoTexture,
+  Vector2,
+  Vector3,
+  Raycaster,
+  LinearFilter,
+  BackSide,
+  RGBFormat,
+} from 'three';
+
+// import * as THREE from 'three';
+// import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+// import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
 import { VIDEO_CONSTS } from './consts/consts';
 
 interface Marker {
   id: string;
   time: number;
-  position: THREE.Vector3;
-  mesh: THREE.Mesh;
+  position: Vector3;
+  mesh: Mesh;
 }
 
 @Component({
@@ -29,15 +48,17 @@ export class Video360Component implements OnInit, OnDestroy {
   @ViewChild('rendererContainer', { static: true }) container!: ElementRef;
   @ViewChild('timeline', { static: true })
   timelineRef!: ElementRef<HTMLDivElement>;
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
-  private scene!: THREE.Scene;
-  private camera!: THREE.PerspectiveCamera;
-  private renderer!: THREE.WebGLRenderer;
+  private scene!: Scene;
+  private camera!: PerspectiveCamera;
+  private renderer!: WebGLRenderer;
   private controls!: OrbitControls;
   private video!: HTMLVideoElement;
-  private texture!: THREE.VideoTexture;
+  private texture!: VideoTexture;
   private hls?: Hls;
-  private sphere!: THREE.Mesh;
+  private sphere!: Mesh;
+  private videoSourcePath: string | null = null;
 
   src360 = 'assets/GS010002.360';
 
@@ -91,8 +112,10 @@ export class Video360Component implements OnInit, OnDestroy {
     this.video.muted = true;
     this.video.playsInline = true;
     this.video.autoplay = true;
-    // this.video.src = this.src5;
+    // this.video.src = this.src3;
+    // this.video.load();
     // this.video.play();
+
     if (Hls.isSupported()) {
       // this.hls = new Hls({
       //   startFragPrefetch: true,
@@ -131,32 +154,58 @@ export class Video360Component implements OnInit, OnDestroy {
       });
     } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
       this.video.src = this.src;
-      this.video.addEventListener('loadedmetadata', () =>
-        this.video.play().catch(() => {})
-      );
+      this.video.addEventListener('loadedmetadata', () => {
+        console.log('🚀 ~ loadedmetadata:');
+        return this.video.play().catch(() => {});
+      });
     }
 
-    this.texture = new THREE.VideoTexture(this.video);
-    this.texture.minFilter = THREE.LinearFilter;
-    this.texture.magFilter = THREE.LinearFilter;
-    this.texture.format = THREE.RGBFormat;
+    this.texture = new VideoTexture(this.video);
+    this.texture.minFilter = LinearFilter;
+    this.texture.magFilter = LinearFilter;
+    this.texture.format = RGBFormat;
     this.texture.repeat.x = -1;
     this.texture.offset.x = 1;
 
-    const geometry = new THREE.SphereGeometry(50, 64, 64);
+    const geometry = new SphereGeometry(50, 64, 64);
     // geometry.scale(-1, 1, 1);
 
-    const material = new THREE.MeshBasicMaterial({
+    const material = new MeshBasicMaterial({
       map: this.texture,
-      side: THREE.BackSide,
+      side: BackSide,
     });
-    this.sphere = new THREE.Mesh(geometry, material);
+    this.sphere = new Mesh(geometry, material);
     this.scene.add(this.sphere);
   }
 
+  loadLocalVideo() {
+    this.pauseVideo();
+    this.fileInput.nativeElement.click();
+  }
+
+  handleFileUpload(event: Event): void {
+    const element = event.currentTarget as HTMLInputElement;
+    let fileList: FileList | null = element.files;
+    if (fileList && fileList.length > 0) {
+      const file = fileList[0];
+      this.videoSourcePath = URL.createObjectURL(file);
+      this.updateVideoSource();
+    }
+  }
+
+  private updateVideoSource(): void {
+    if (this.videoSourcePath) {
+      this.video.src = this.videoSourcePath;
+      this.video.load();
+      this.video
+        .play()
+        .catch((e) => console.error('Video autoplay failed:', e));
+    }
+  }
+
   private initScene() {
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(
+    this.scene = new Scene();
+    this.camera = new PerspectiveCamera(
       VIDEO_CONSTS.DEFAULT_CAMERA_FOW,
       window.innerWidth / window.innerHeight,
       VIDEO_CONSTS.DEFAULT_CAMERA_NEAR,
@@ -164,7 +213,7 @@ export class Video360Component implements OnInit, OnDestroy {
     );
     this.camera.position.set(0, 0, 0.1);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.nativeElement.appendChild(this.renderer.domElement);
 
@@ -180,14 +229,14 @@ export class Video360Component implements OnInit, OnDestroy {
 
     this.renderer.domElement.addEventListener('wheel', (event) => {
       event.preventDefault();
-      const zoomSpeed = 1.0;
+      const zoomSpeed = 3.0;
 
       // Scrolling forward (deltaY < 0) means zooming in (decreasing FOV)
       // Scrolling backward (deltaY > 0) means zooming out (increasing FOV)
       if (event.deltaY < 0) {
         this.camera.fov = Math.max(1, this.camera.fov - zoomSpeed);
       } else {
-        this.camera.fov = Math.min(120, this.camera.fov + zoomSpeed);
+        this.camera.fov = Math.min(150, this.camera.fov + zoomSpeed);
       }
 
       this.camera.updateProjectionMatrix();
@@ -196,11 +245,11 @@ export class Video360Component implements OnInit, OnDestroy {
     this.renderer.domElement.addEventListener('click', (event) => {
       if (!this.markMode) return;
 
-      const mouse = new THREE.Vector2();
+      const mouse = new Vector2();
       mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-      const raycaster = new THREE.Raycaster();
+      const raycaster = new Raycaster();
       raycaster.setFromCamera(mouse, this.camera);
       const intersects = raycaster.intersectObject(this.sphere, false);
 
@@ -221,10 +270,10 @@ export class Video360Component implements OnInit, OnDestroy {
     });
   }
 
-  private createMarker(): THREE.Mesh {
-    const geom = new THREE.SphereGeometry(0.5, 16, 16);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const marker = new THREE.Mesh(geom, mat);
+  private createMarker(): Mesh {
+    const geom = new SphereGeometry(0.5, 16, 16);
+    const mat = new MeshBasicMaterial({ color: 0xff0000 });
+    const marker = new Mesh(geom, mat);
     marker.name = `marker-${this.uid()}`; // Assign unique ID to mesh
     return marker;
 
